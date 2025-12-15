@@ -195,7 +195,3 @@ if uploaded_file is not None:
     
 else:
     st.info("Silakan unggah dataset Anda ('Sample - Superstore.csv') untuk memulai analisis dan demo model.")
-
-# --- BAGIAN B & SEGMENTASI (Placeholder) ---
-st.header("🅱 Bagian B – Regresi Konsumsi BBM (Placeholder untuk Teman Anda)")
-st.header("📊 Segmentasi Motor (Placeholder untuk Teman Anda)")
