@@ -3,6 +3,7 @@
 import streamlit as st
 import pandas as pd
 import joblib
+from sklearn.model_selection import train_test_split # Perlu untuk get_evaluation_metrics
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 import numpy as np
 import io
@@ -13,8 +14,11 @@ import io
 try:
     rf_model = joblib.load('rf_model.pkl')
     MODEL_FEATURES = joblib.load('model_features.pkl')
-    st.success("Model Random Forest Klasifikasi berhasil dimuat.") # <--- PERBAIKAN!
+    st.success("Model Random Forest Klasifikasi berhasil dimuat.") # Perbaikan NameError: ST -> st
 except FileNotFoundError:
+    st.error("File model (rf_model.pkl atau model_features.pkl) tidak ditemukan. Pastikan sudah diunduh dari Colab.")
+    st.stop()
+
 
 # --- FUNGSI PREDIKSI ---
 def preprocess_and_predict(input_data):
@@ -46,6 +50,7 @@ def preprocess_and_predict(input_data):
 
 
 # --- FUNGSI EVALUASI (Menggunakan Data Uji dari Model Asli) ---
+@st.cache_data # Menghindari perhitungan ulang yang tidak perlu
 def get_evaluation_metrics(df_full):
     """
     Menghitung ulang metrik pada data uji (harus dilakukan di lingkungan yang sama)
@@ -71,7 +76,7 @@ def get_evaluation_metrics(df_full):
     
     # Hasil
     accuracy = accuracy_score(y_test, y_pred)
-    report = classification_report(y_test, y_pred, output_dict=True)
+    report = classification_report(y_test, y_pred, output_dict=True, zero_division=0)
     conf_matrix = confusion_matrix(y_test, y_pred)
     
     return accuracy, report, conf_matrix, X.shape[0], X_encoded.shape[1]
@@ -91,7 +96,12 @@ st.subheader("📂 Upload Dataset Superstore")
 uploaded_file = st.file_uploader("Upload 'Sample - Superstore.csv' atau dataset Anda", type=["csv"])
 
 if uploaded_file is not None:
-    df_uploaded = pd.read_csv(uploaded_file, encoding='latin1')
+    # Memuat data
+    try:
+        df_uploaded = pd.read_csv(uploaded_file, encoding='latin1')
+    except Exception as e:
+        st.error(f"Error saat memuat file: {e}")
+        st.stop()
     
     # --- 2. PRATINJAU DATASET ---
     st.subheader("📌 Pratinjau Dataset")
@@ -115,6 +125,7 @@ if uploaded_file is not None:
     st.markdown("---")
     st.header("🅰 Bagian A – Klasifikasi Profit (Random Forest)")
     
+    # Dapatkan metrik evaluasi
     accuracy, report, conf_matrix, total_rows, total_features = get_evaluation_metrics(df_uploaded)
     
     # --- 4a. EVALUASI RANDOM FOREST ---
@@ -126,32 +137,40 @@ if uploaded_file is not None:
     report_df = pd.DataFrame(report).transpose().round(2)
     st.dataframe(report_df)
     
-    st.write("Confusion Matrix:")
+    st.write("Confusion Matrix (Kelas 0=Not Profitable, 1=Profitable):")
     st.code(conf_matrix)
 
     # --- 4b. PREDIKSI INTERAKTIF ---
     st.subheader("🔍 Prediksi Profitabilitas Transaksi")
     
     # Mengumpulkan input pengguna untuk prediksi
+    # Menggunakan nilai unik dari data untuk dropdown
+    ship_modes = df_uploaded['Ship Mode'].unique()
+    segments = df_uploaded['Segment'].unique()
+    regions = df_uploaded['Region'].unique()
+    categories = df_uploaded['Category'].unique()
+    
     with st.form("prediction_form"):
         col1, col2, col3 = st.columns(3)
         
         # Kolom 1
         with col1:
-            sales = st.number_input("Sales ($)", min_value=1.0, max_value=20000.0, value=250.0, step=10.0)
+            sales = st.number_input("Sales ($)", min_value=0.01, max_value=25000.0, value=250.0, step=10.0)
             quantity = st.slider("Quantity (Jumlah Barang)", min_value=1, max_value=14, value=3)
             discount = st.slider("Discount (%)", min_value=0.0, max_value=0.8, value=0.0, step=0.05)
 
         # Kolom 2
         with col2:
-            ship_mode = st.selectbox("Ship Mode", df_uploaded['Ship Mode'].unique())
-            segment = st.selectbox("Segment", df_uploaded['Segment'].unique())
-            region = st.selectbox("Region", df_uploaded['Region'].unique())
+            ship_mode = st.selectbox("Ship Mode", ship_modes)
+            segment = st.selectbox("Segment", segments)
+            region = st.selectbox("Region", regions)
         
         # Kolom 3
         with col3:
-            category = st.selectbox("Category", df_uploaded['Category'].unique())
-            sub_category = st.selectbox("Sub-Category", df_uploaded[df_uploaded['Category'] == category]['Sub-Category'].unique())
+            category = st.selectbox("Category", categories)
+            # Filter Sub-Category berdasarkan Category yang dipilih
+            sub_categories = df_uploaded[df_uploaded['Category'] == category]['Sub-Category'].unique()
+            sub_category = st.selectbox("Sub-Category", sub_categories)
 
         submitted = st.form_submit_button("Prediksi Hasil Klasifikasi")
 
@@ -175,9 +194,8 @@ if uploaded_file is not None:
     st.markdown("---")
     
 else:
-    st.info("Silakan unggah dataset Anda untuk memulai analisis dan demo model.")
+    st.info("Silakan unggah dataset Anda ('Sample - Superstore.csv') untuk memulai analisis dan demo model.")
 
 # --- BAGIAN B & SEGMENTASI (Placeholder) ---
-# Anda dapat menambahkan bagian B (Regresi) dan Segmentasi di sini
-st.header("🅱 Bagian B – Prediksi Konsumsi BBM Motor (Regresi) - [Placeholder]")
-st.header("📊 Segmentasi Motor Berdasarkan Konsumsi BBM - [Placeholder]")
+st.header("🅱 Bagian B – Regresi Konsumsi BBM (Placeholder untuk Teman Anda)")
+st.header("📊 Segmentasi Motor (Placeholder untuk Teman Anda)")
