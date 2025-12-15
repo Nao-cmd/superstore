@@ -13,11 +13,8 @@ import io
 try:
     rf_model = joblib.load('rf_model.pkl')
     MODEL_FEATURES = joblib.load('model_features.pkl')
-    ST.SUCCESS("Model Random Forest Klasifikasi berhasil dimuat.")
+    st.success("Model Random Forest Klasifikasi berhasil dimuat.") # <--- PERBAIKAN!
 except FileNotFoundError:
-    st.error("File model (rf_model.pkl atau model_features.pkl) tidak ditemukan. Pastikan sudah diunduh dari Colab.")
-    st.stop()
-
 
 # --- FUNGSI PREDIKSI ---
 def preprocess_and_predict(input_data):
