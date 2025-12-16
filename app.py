@@ -20,6 +20,16 @@ except FileNotFoundError:
     st.error("File model (rf_model.pkl atau model_features.pkl) tidak ditemukan. Pastikan sudah diunduh dari Colab dan berada di folder yang sama.")
     st.stop()
 
+# Model Regresi (Random Forest Regressor - FINAL)
+try:
+    # Pastikan nama file ini adalah RFR, BUKAN xgb_ atau lgbm_
+    rfr_model = joblib.load('rfr_model.pkl') 
+    RFR_PREPROCESSOR = joblib.load('rfr_preprocessor.pkl')
+    RFR_FEATURE_NAMES = joblib.load('rfr_feature_names.pkl')
+    st.sidebar.success("Model Regresi (RFR, R²=0.6038) berhasil dimuat.") 
+except FileNotFoundError:
+    st.sidebar.error("File model Regresi (RFR) tidak ditemukan.")
+    st.stop()
 
 # --- FUNGSI PREDIKSI ---
 def preprocess_and_predict(input_data):
