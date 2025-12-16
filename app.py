@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
+import sys # Digunakan untuk debugging
 
 # --- KONFIGURASI UMUM STREAMLIT ---
 st.set_page_config(
@@ -15,7 +16,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- SETUP (Memuat Kedua Model) ---
+# --- DEKLARASI KATEGORI GLOBAL (FIX untuk SelectBox Error) ---
+# Kategori ini harus sama persis dengan saat training RFR Anda!
+SHIP_MODE_CATS = ['First Class', 'Same Day', 'Second Class', 'Standard Class']
+SEGMENT_CATS = ['Consumer', 'Corporate', 'Home Office']
+REGION_CATS = ['Central', 'East', 'South', 'West']
+CATEGORY_CATS = ['Furniture', 'Office Supplies', 'Technology']
+SUB_CATEGORY_CATS = ['Accessories', 'Appliances', 'Art', 'Binders', 'Bookcases', 'Chairs', 'Copiers', 'Envelopes', 'Fasteners', 'Furnishings', 'Labels', 'Machines', 'Paper', 'Phones', 'Storage', 'Supplies'] 
+
+# --- SETUP: FUNGSI MEMUAT MODEL ---
 
 @st.cache_resource
 def load_models():
@@ -26,46 +35,38 @@ def load_models():
     # Model Klasifikasi (Random Forest Classifier)
     try:
         models['rf_model'] = joblib.load('rf_model.pkl')
-        models['MODEL_FEATURES_CLS'] = joblib.load('model_features.pkl')
+        # Model features/kolom yang digunakan saat training Klasifikasi
+        models['MODEL_FEATURES_CLS'] = joblib.load('model_features.pkl') 
         models['cls_status'] = "Model Klasifikasi (Random Forest) berhasil dimuat."
     except FileNotFoundError:
-        models['cls_status'] = "ERROR: File model Klasifikasi tidak ditemukan. (rf_model.pkl)"
+        models['cls_status'] = "ERROR: File model Klasifikasi (rf_model.pkl) tidak ditemukan."
         
     # Model Regresi (Random Forest Regressor - FINAL RFR)
     try:
-        # Kita hanya memuat model RFR utama, Preprocessor dibuat ulang di bawah
         models['rfr_model'] = joblib.load('rfr_model.pkl') 
         models['reg_status'] = "Model Regresi (RFR, R²=0.6038) berhasil dimuat."
     except FileNotFoundError:
-        models['reg_status'] = "ERROR: File model Regresi tidak ditemukan. (rfr_model.pkl)"
+        models['reg_status'] = "ERROR: File model Regresi (rfr_model.pkl) tidak ditemukan."
         
     return models
 
 loaded_models = load_models()
 
-# --- FUNGSI PEMBUATAN PREPROCESSOR (FIX for AttributeError) ---
-# FIX: Membuat ulang ColumnTransformer saat runtime untuk menghindari error pickling/versi
+# --- FUNGSI PEMBUATAN PREPROCESSOR (FIX for joblib/pickle AttributeError) ---
+# FIX: Membuat ulang ColumnTransformer saat runtime
 @st.cache_resource
 def create_rfr_preprocessor():
     """Membuat ulang ColumnTransformer yang diperlukan untuk prediksi RFR."""
     
     cat_features = ['Ship Mode', 'Segment', 'Region', 'Category', 'Sub-Category']
     
-    # === GANTI KATEGORI DI BAWAH INI DENGAN KATEGORI ASLI ANDA DARI NOTEBOOK COLAB ===
-    # Ini harus sama persis dengan urutan dan nilai yang digunakan saat training!
-    
-    # Kategori yang sering ada di dataset Superstore:
-    SHIP_MODE_CATS = ['First Class', 'Same Day', 'Second Class', 'Standard Class']
-    SEGMENT_CATS = ['Consumer', 'Corporate', 'Home Office']
-    REGION_CATS = ['Central', 'East', 'South', 'West']
-    CATEGORY_CATS = ['Furniture', 'Office Supplies', 'Technology']
-    SUB_CATEGORY_CATS = ['Accessories', 'Appliances', 'Art', 'Binders', 'Bookcases', 'Chairs', 'Copiers', 'Envelopes', 'Fasteners', 'Furnishings', 'Labels', 'Machines', 'Paper', 'Phones', 'Storage', 'Supplies'] 
-
     categorical_transformer = OneHotEncoder(
         handle_unknown='ignore',
+        # Menggunakan kategori global yang didefinisikan di atas
         categories=[SHIP_MODE_CATS, SEGMENT_CATS, REGION_CATS, CATEGORY_CATS, SUB_CATEGORY_CATS]
     )
     
+    # Hanya kolom kategorikal yang di-transform, sisa kolom (numerik) dibiarkan (passthrough)
     preprocessor = ColumnTransformer(
         transformers=[
             ('cat', categorical_transformer, cat_features)
@@ -75,6 +76,7 @@ def create_rfr_preprocessor():
     
     return preprocessor
 
+# Inisialisasi Preprocessor Global
 if 'rfr_model' in loaded_models:
     RFR_PREPROCESSOR_GLOBAL = create_rfr_preprocessor()
 else:
@@ -83,16 +85,19 @@ else:
 
 # --- SIDEBAR & STATUS MODEL ---
 with st.sidebar:
-    st.title("⚙️ Status Model")
+    st.title("⚙️ Status Aplikasi")
+    st.markdown(f"Python Version: `{sys.version.split()[0]}`")
+    st.markdown("---")
+    
     if 'rf_model' in loaded_models:
-        st.success(loaded_models.get('cls_status', "Model Klasifikasi Dimuat."))
+        st.success(loaded_models.get('cls_status'))
     else:
-        st.error(loaded_models.get('cls_status', "Model Klasifikasi GAGAL Dimuat."))
+        st.error(loaded_models.get('cls_status'))
 
     if 'rfr_model' in loaded_models:
-        st.success(loaded_models.get('reg_status', "Model Regresi Dimuat."))
+        st.success(loaded_models.get('reg_status'))
     else:
-        st.error(loaded_models.get('reg_status', "Model Regresi GAGAL Dimuat."))
+        st.error(loaded_models.get('reg_status'))
 
     st.markdown("---")
     st.header("💡 Input Prediksi")
@@ -102,11 +107,12 @@ with st.sidebar:
 def predict_profitability(input_df, model, feature_names):
     """Melakukan prediksi apakah pesanan 'Profit' atau 'Not Profit'."""
     
-    # Asumsi Anda menggunakan encoding numerik sederhana di model Klasifikasi awal
+    # Encoding sederhana (Sesuai saat training Klasifikasi awal)
     input_df['Ship Mode'] = input_df['Ship Mode'].map({'Second Class': 1, 'Standard Class': 2, 'First Class': 3, 'Same Day': 4})
     input_df['Segment'] = input_df['Segment'].map({'Consumer': 1, 'Corporate': 2, 'Home Office': 3})
     input_df['Category'] = input_df['Category'].map({'Office Supplies': 1, 'Furniture': 2, 'Technology': 3})
     
+    # Urutan kolom harus sama dengan feature_names
     X_input = input_df[feature_names]
     
     prediction = model.predict(X_input)
@@ -125,13 +131,9 @@ def predict_sales(input_df, model, preprocessor):
     input_cols = ['Ship Mode', 'Segment', 'Region', 'Category', 'Sub-Category', 'Quantity', 'Discount', 'Profit']
     X_input = input_df[input_cols]
     
-    # 1. Fit Preprocessor dengan data input (karena OHE handle_unknown='ignore')
-    # 2. Transformasi data input
-    # NOTE: Karena ColumnTransformer/OHE tidak dilatih, kita harus panggil fit_transform
-    # pada data dummy pertama kali untuk menginisialisasi OHE, lalu transform pada data input.
-    # Namun, karena kita membuat OHE dengan kategori eksplisit, kita bisa langsung transform.
-    
-    X_processed = preprocessor.fit_transform(X_input) # Gunakan fit_transform untuk memastikan OHE terinisialisasi
+    # Kita menggunakan fit_transform pada data input tunggal untuk menginisialisasi
+    # ColumnTransformer/OHE yang dibuat secara inline.
+    X_processed = preprocessor.fit_transform(X_input) 
     
     prediction = model.predict(X_processed)
     
@@ -187,7 +189,7 @@ with tab1:
             st.dataframe(df_input_cls.T, use_container_width=True)
             
     else:
-         st.error("Model Klasifikasi belum termuat. Mohon cek file rf_model.pkl.")
+         st.error("Model Klasifikasi belum termuat.")
 
 
 # =========================================================================
@@ -204,13 +206,12 @@ with tab2:
             st.subheader("Input Regresi")
             
             input_reg = {}
-            
-            # Ambil kategori dari preprocessor yang dibuat (jika Anda menggunakan OHE yang eksplisit)
-            input_reg['Ship Mode'] = st.selectbox("Ship Mode (Reg)", RFR_PREPROCESSOR_GLOBAL.transformers_[0][1].categories_[0])
-            input_reg['Segment'] = st.selectbox("Segment (Reg)", RFR_PREPROCESSOR_GLOBAL.transformers_[0][1].categories_[1])
-            input_reg['Region'] = st.selectbox("Region (Reg)", RFR_PREPROCESSOR_GLOBAL.transformers_[0][1].categories_[2])
-            input_reg['Category'] = st.selectbox("Category (Reg)", RFR_PREPROCESSOR_GLOBAL.transformers_[0][1].categories_[3])
-            input_reg['Sub-Category'] = st.selectbox("Sub-Category (Reg)", RFR_PREPROCESSOR_GLOBAL.transformers_[0][1].categories_[4])
+            # Menggunakan variabel kategori global yang sudah didefinisikan
+            input_reg['Ship Mode'] = st.selectbox("Ship Mode (Reg)", SHIP_MODE_CATS) 
+            input_reg['Segment'] = st.selectbox("Segment (Reg)", SEGMENT_CATS)       
+            input_reg['Region'] = st.selectbox("Region (Reg)", REGION_CATS)          
+            input_reg['Category'] = st.selectbox("Category (Reg)", CATEGORY_CATS)    
+            input_reg['Sub-Category'] = st.selectbox("Sub-Category (Reg)", SUB_CATEGORY_CATS) 
             
             input_reg['Quantity'] = st.slider("Quantity (Reg)", 1, 14, 5)
             input_reg['Discount'] = st.slider("Discount (Reg)", 0.0, 0.8, 0.0, 0.05)
@@ -282,7 +283,7 @@ with tab3:
                 importances.nlargest(10).plot(kind='barh', ax=ax_imp)
                 ax_imp.set_title('Top 10 Feature Importance')
                 ax_imp.set_xlabel('Importance Score')
-                st.pyplot(fig_imp)
+                st.pyplot(fig_imp) 
             except Exception as e:
                 st.warning(f"Feature Importance tidak dapat ditampilkan: {e}")
 
@@ -296,7 +297,7 @@ with tab3:
             ax_cm.set_title('Confusion Matrix (Estimasi)')
             ax_cm.set_ylabel('Actual')
             ax_cm.set_xlabel('Predicted')
-            st.pyplot(fig_cm)
+            st.pyplot(fig_cm) 
             
             st.markdown(f"**Akurasi Model:** (Estimasi) **94%**")
 
