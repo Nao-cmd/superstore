@@ -1,0 +1,4 @@
+[runner]
+magicEnabled = false # Biasanya disarankan false untuk depoloyment
+# Menentukan Python versi 3.9 (Versi yang lebih stabil dan kompatibel)
+python_version = "3.9"
