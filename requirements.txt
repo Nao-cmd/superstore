@@ -4,4 +4,4 @@ numpy
 matplotlib
 seaborn
 joblib==1.3.2
-scikit-learn==1.1.3 # Coba versi 1.1.3 atau 1.2.2. Ini sering mengatasi AttributeError.
+scikit-learn==1.2.2  # Coba versi ini dengan Python 3.9
