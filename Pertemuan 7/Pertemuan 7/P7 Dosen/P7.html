@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pembuatan Template</title>
+  <link rel="stylesheet" href="P7style.css">
+</head>
+<body>
+  <header>Bagian Header</header>
+  
+  <nav class="navbar">
+      <ul>
+        <li><a href="index.html">Beranda</a></li>
+        <li><a href="data.html">Data</a></li>
+        <li><a href="laporan.html">Laporan</a></li>
+        <li><a href="logout.php">Logout</a></li>
+      </ul>
+  </nav>
+
+  <main>  
+    <table class="data-table" style="display: none;">
+      <thead>
+        <tr>
+          <th>No</th>
+          <th>Nama</th>
+          <th>Email</th>
+          <th>Aksi <a href="tambah.html"> <button>Tambah</button></a></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Budi</td>
+          <td>budi@example.com</td>
+          <td><button>Edit</button> <button>Hapus</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="login-container">
+      <h2>Login User</h2>
+      <form action="login.php" method="POST">
+        <label>Username</label>
+        <input type="text" name="username" required>
+        <label>Password</label>
+        <input type="password" name="password" required>
+        <button type="submit">Masuk</button><button type="reset" style="background-color: red;">Reset</button>
+      </form>
+      <p align="right"><a href="lupaPassword.html" title="Klik ini untuk mengirimkan link reset password"> Lupa Password </a></p>
+    </div>
+
+  </main>
+  <footer>Hak Cipta © 2025</footer>
+</body>
+</html
